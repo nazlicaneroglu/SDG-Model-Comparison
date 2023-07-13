@@ -10,6 +10,7 @@ from sklearn.linear_model import LogisticRegression
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from sklearn.metrics import accuracy_score
 import statsmodels.api as sm
+import matplotlib.pyplot as plt
 from sklearn.linear_model import Lasso
 import numpy as np
 
@@ -48,46 +49,44 @@ for keyword in sdg1_keywords:
     df[keyword] = df['text'].str.count(keyword.lower())
 print(df.columns)
 
-# List to store the columns with at least one "1" value
-columns_with_ones = []
+# Subset the DataFrame to include only rows with 'sdg_label' equals to 'sdg1'
+df_sdg1 = df[df['sdg_1_dummy'] == 1]
+
+# List to store the columns with at least one "1" value for texts labelled as sdg1
+columns_with_ones_sdg1 = []
 
 # Iterate through each keyword column
 for keyword in sdg1_keywords:
-    # Check if the keyword column has at least one "1" value
-    if df[keyword].any():
-        columns_with_ones.append(keyword)
+    keyword = keyword.strip()  # Remove leading/trailing whitespaces
+    # Check if the keyword column exists in the DataFrame and 
+    # it has at least one "1" value for texts labelled as sdg1
+    if keyword in df_sdg1.columns and df_sdg1[keyword].any():
+        columns_with_ones_sdg1.append(keyword)
 
-# Print the columns with at least one "1" value
-print(columns_with_ones)
+# Print the columns with at least one "1" value for texts labelled as sdg1
+print(columns_with_ones_sdg1)
 
 # List to store the columns to delete
-columns_to_delete = []
+columns_to_delete_sdg1 = []
 
 # Iterate through each keyword column
 for keyword in sdg1_keywords:
-    # Check if the keyword column exists in the DataFrame
-    if keyword in df.columns:
-        # Check if all values in the keyword column are "0"
-        if df[keyword].sum() == 0:
-            columns_to_delete.append(keyword)
-    else:
-        print(f"Column '{keyword}' does not exist.")
+    keyword = keyword.strip()  # Remove leading/trailing whitespaces
+    # Check if the keyword column exists in the DataFrame and 
+    # it does NOT have any "1" value for texts labelled as sdg1
+    if keyword in df.columns and not df.loc[df['sdg_1_dummy'] == 1, keyword].any():
+        columns_to_delete_sdg1.append(keyword)
 
-# Delete the columns with only "0" values
-df = df.drop(columns=columns_to_delete)
+# Delete the columns with only "0" values for SDG1 labelled texts
+df = df.drop(columns=columns_to_delete_sdg1)
 
 # Print the remaining columns
 print(df.columns)
 
 # Assign the feature and target variables
-features = df.iloc[:, -524:]
+features = df.iloc[:, -310:]
 target = df['sdg_1_dummy']
-
-
-# Check for perfect separation
-# Uncomment the following line to check for perfect separation
-print(target.value_counts())
-
+'''
 # check for multicollinearity
 correlation_matrix = features.corr()
 print(correlation_matrix)
@@ -110,6 +109,10 @@ features_filtered = features.drop(columns=high_vif_vars)
 print("remaining variables after dropping high vif variables:")
 print(features_filtered.columns)
 vif.to_csv('vif_sdg1.csv', index=False)
+
+# Assign the feature and target variables
+features = features_filtered
+target = df['sdg_1_dummy']
 
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
@@ -141,6 +144,62 @@ p_values = result.pvalues[1:]  # Exclude the constant term
 p_values = p_values.rename(index=dict(zip(p_values.index, X_train.columns[1:])))  # Rename the index with feature names
 print("\nP-values:")
 print(p_values)
+
+'''
+from sklearn.linear_model import Ridge
+from sklearn.metrics import mean_squared_error
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
+
+# Replace Logistic Regression with Ridge Regression
+ridge = Ridge(alpha=0.5)  # Adjust the alpha parameter as needed
+
+# Fit the Ridge regression model on the training data
+ridge.fit(X_train, y_train)
+
+# Get the predicted probabilities of the features on the testing data
+predicted_probabilities = ridge.predict(X_test)
+
+# Convert predicted probabilities to binary predictions (0 or 1) using a threshold of 0.5
+predictions = (predicted_probabilities >= 0.5).astype(int)
+
+# Calculate the accuracy of the model
+accuracy = accuracy_score(y_test, predictions)
+print("\nAccuracy:", accuracy)
+
+# Get the coefficient magnitudes and signs
+coefficients = pd.DataFrame({"Feature":X_train.columns,"Coefficients":np.transpose(ridge.coef_)})
+
+# Add a new column for the absolute value of coefficients
+coefficients['abs_coefficients'] = coefficients['Coefficients'].abs()
+
+# Sort the dataframe by the absolute value of coefficients, in descending order
+coefficients = coefficients.sort_values('abs_coefficients', ascending=False)
+
+# Display the sorted dataframe
+print(coefficients)
+coefficients.to_csv('coefficients_sdg1_ridge.csv', index=False)
+
+#Visualize
+
+# Select the top 10 features
+top_10_coefficients = coefficients.head(15)
+
+# Create a figure and a set of subplots
+fig, ax = plt.subplots()
+
+# Create a horizontal bar plot of the coefficients
+top_10_coefficients.plot(kind='barh', x='Feature', y='abs_coefficients', ax=ax)
+
+# Set the title of the plot
+ax.set_title('Feature Importance')
+
+# Invert the y-axis to have the highest positive coefficient at the top
+ax.invert_yaxis()
+
+# Show the plot
+plt.show()
 
 
 
