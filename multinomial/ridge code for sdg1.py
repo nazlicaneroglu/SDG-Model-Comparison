@@ -39,7 +39,6 @@ count_sdg1_keywords = keyword_data['SDGs'].value_counts()['SDG1']
 print("Count of sdg1 texts = 1:", count_sdg1) #1101
 print("Count of sdg1 keywords = 1:", count_sdg1_keywords) #717
 
-
 #For SDG1
 sdg1_keywords = keyword_data[keyword_data['SDGs'] == "SDG1"]['Words (Phrases)'].tolist()
 
@@ -152,8 +151,25 @@ from sklearn.metrics import mean_squared_error
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
+from sklearn.linear_model import RidgeCV
+
+# List of alphas to try 
+alphas = np.logspace(-4, 4, 50)  # Adjust the range and granularity as needed
+
+# Create a RidgeCV model
+ridgecv = RidgeCV(alphas=alphas, cv=5)  # 5-fold cross-validation
+
+# Fit the model
+ridgecv.fit(X_train, y_train)
+
+# Get the alpha that was selected
+best_alpha = ridgecv.alpha_
+
+print("Best alpha:", best_alpha)
+#Best alpha: 51.79474679231202
+
 # Replace Logistic Regression with Ridge Regression
-ridge = Ridge(alpha=0.5)  # Adjust the alpha parameter as needed
+ridge = Ridge(alpha=best_alpha)  # Adjust the alpha parameter as needed
 
 # Fit the Ridge regression model on the training data
 ridge.fit(X_train, y_train)
@@ -167,6 +183,7 @@ predictions = (predicted_probabilities >= 0.5).astype(int)
 # Calculate the accuracy of the model
 accuracy = accuracy_score(y_test, predictions)
 print("\nAccuracy:", accuracy)
+#accuracy Accuracy: 0.9779323578795874
 
 # Get the coefficient magnitudes and signs
 coefficients = pd.DataFrame({"Feature":X_train.columns,"Coefficients":np.transpose(ridge.coef_)})

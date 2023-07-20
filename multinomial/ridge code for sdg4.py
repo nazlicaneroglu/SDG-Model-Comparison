@@ -1,10 +1,10 @@
+
 # -*- coding: utf-8 -*-
 """
 Created on Sun Jun 11 14:55:53 2023
 
 @author: pc
 """
-
 import pandas as pd 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
@@ -24,70 +24,68 @@ df['text'] = df['text'].str.lower()
 keyword_data = pd.read_excel("/Users/admin/Desktop/thesis/SDG-Model-Comparison/datasets/remove_dup_keywords.xlsx")
 
 #create dummy for sdg 1 
-df['sdg_3_dummy'] = (df['sdg'] == 3) & (df['labels_positive'] > df['labels_negative']) & (df['agreement'] > 0.75)
+df['sdg_4_dummy'] = (df['sdg'] == 4) & (df['labels_positive'] > df['labels_negative']) & (df['agreement'] > 0.75)
 
 # Convert boolean values to 1 or 0
-df['sdg_3_dummy'] = df['sdg_3_dummy'].astype(int)
+df['sdg_4_dummy'] = df['sdg_4_dummy'].astype(int)
 
 # Display the updated DataFrame
 print(df)
 
 # Count the occurrences of new_dummy_variable = 1
-count_sdg3 = df['sdg_3_dummy'].value_counts()[1]
-count_sdg3_keywords = keyword_data['SDGs'].value_counts()['SDG3']
+count_sdg4 = df['sdg_4_dummy'].value_counts()[1]
+count_sdg4_keywords = keyword_data['SDGs'].value_counts()['SDG4']
 
 # Display the count
-print("Count of sdg3 texts = 1:", count_sdg3) #1757
-print("Count of sdg3 keywords = 1:", count_sdg3_keywords) #26306
+print("Count of sdg4 texts = 1:", count_sdg4) #1101
+print("Count of sdg4 keywords = 1:", count_sdg4_keywords) #717
 
+#For SDG1
+sdg4_keywords = keyword_data[keyword_data['SDGs'] == "SDG4"]['Words (Phrases)'].tolist()
 
-#For SDG2
-sdg3_keywords = keyword_data[keyword_data['SDGs'] == "SDG3"]['Words (Phrases)'].tolist()
-
-# For each SDG3 related keyword
-for keyword in sdg3_keywords:
+# For each SDG1 related keyword
+for keyword in sdg4_keywords:
     # Count the occurrences of the keyword in the text column
-    df[keyword] = df['text'].str.contains(r'\b' + pd.Series([keyword]).str.replace('(', r'\(').str.replace(')', r'\)').str.replace('+', r'\+').str.replace('*', r'\*').str.replace('?', r'\?')[0] + r'\b', case=False).astype(int)
+    df[keyword] = df['text'].str.count(keyword.lower())
 print(df.columns)
 
 # Subset the DataFrame to include only rows with 'sdg_label' equals to 'sdg1'
-df_sdg3 = df[df['sdg_3_dummy'] == 1]
+df_sdg4 = df[df['sdg_4_dummy'] == 1]
 
 # List to store the columns with at least one "1" value for texts labelled as sdg1
-columns_with_ones_sdg3 = []
+columns_with_ones_sdg4 = []
 
 # Iterate through each keyword column
-for keyword in sdg3_keywords:
+for keyword in sdg4_keywords:
     keyword = keyword.strip()  # Remove leading/trailing whitespaces
     # Check if the keyword column exists in the DataFrame and 
     # it has at least one "1" value for texts labelled as sdg1
-    if keyword in df_sdg3.columns and df_sdg3[keyword].any():
-        columns_with_ones_sdg3.append(keyword)
+    if keyword in df_sdg4.columns and df_sdg4[keyword].any():
+        columns_with_ones_sdg4.append(keyword)
 
 # Print the columns with at least one "1" value for texts labelled as sdg1
-print(columns_with_ones_sdg3)
+print(columns_with_ones_sdg4)
 
 # List to store the columns to delete
-columns_to_delete_sdg3 = []
+columns_to_delete_sdg4 = []
 
 # Iterate through each keyword column
-for keyword in sdg3_keywords:
+for keyword in sdg4_keywords:
     keyword = keyword.strip()  # Remove leading/trailing whitespaces
     # Check if the keyword column exists in the DataFrame and 
     # it does NOT have any "1" value for texts labelled as sdg1
-    if keyword in df.columns and not df.loc[df['sdg_3_dummy'] == 1, keyword].any():
-        columns_to_delete_sdg3.append(keyword)
+    if keyword in df.columns and not df.loc[df['sdg_4_dummy'] == 1, keyword].any():
+        columns_to_delete_sdg4.append(keyword)
 
 # Delete the columns with only "0" values for SDG1 labelled texts
-df = df.drop(columns=columns_to_delete_sdg3)
+df = df.drop(columns=columns_to_delete_sdg4)
 
 # Print the remaining columns
 print(df.columns)
 
 # Assign the feature and target variables
-features = df.iloc[:, -917:]
-target = df['sdg_3_dummy']
-
+features = df.iloc[:, -574:]
+target = df['sdg_4_dummy']
 '''
 # check for multicollinearity
 correlation_matrix = features.corr()
@@ -169,7 +167,7 @@ ridgecv.fit(X_train, y_train)
 best_alpha = ridgecv.alpha_
 
 print("Best alpha:", best_alpha)
-#Best alpha: 11.513953993264458
+#Best alpha: 51.79474679231202
 
 # Replace Logistic Regression with Ridge Regression
 ridge = Ridge(alpha=best_alpha)  # Adjust the alpha parameter as needed
@@ -186,7 +184,7 @@ predictions = (predicted_probabilities >= 0.5).astype(int)
 # Calculate the accuracy of the model
 accuracy = accuracy_score(y_test, predictions)
 print("\nAccuracy:", accuracy)
-#Accuracy: 0.9694171264092108
+#accuracy Accuracy: 0.9779323578795874
 
 # Get the coefficient magnitudes and signs
 coefficients = pd.DataFrame({"Feature":X_train.columns,"Coefficients":np.transpose(ridge.coef_)})
@@ -199,7 +197,7 @@ coefficients = coefficients.sort_values('abs_coefficients', ascending=False)
 
 # Display the sorted dataframe
 print(coefficients)
-coefficients.to_csv('coefficients_sdg3_ridge.csv', index=False)
+coefficients.to_csv('coefficients_sdg4_ridge.csv', index=False)
 
 #Visualize
 
@@ -220,5 +218,6 @@ ax.invert_yaxis()
 
 # Show the plot
 plt.show()
+
 
 
